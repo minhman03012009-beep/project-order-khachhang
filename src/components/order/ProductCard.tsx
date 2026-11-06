@@ -24,7 +24,7 @@ export function ProductCard({
     <article
       style={{ animationDelay: `${index * 60}ms` }}
       className={cn(
-        "card group animate-rise relative flex flex-col overflow-hidden transition duration-300",
+        "card group animate-rise relative flex h-full flex-col overflow-hidden transition duration-300",
         !blocked && "hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.07]",
         soldOut && "opacity-55",
       )}
@@ -37,7 +37,7 @@ export function ProductCard({
         aria-label={`Chọn ${product.name}`}
         className="absolute inset-0 z-10 cursor-pointer disabled:cursor-not-allowed"
       />
-      <div className="relative aspect-square overflow-hidden rounded-[1.4rem] m-1.5 mb-0 sm:aspect-[4/3]">
+      <div className="relative m-1.5 mb-0 aspect-square overflow-hidden rounded-[1.4rem] sm:aspect-[4/3]">
         <SmartImage
           src={product.image_url}
           alt={product.name}
@@ -65,21 +65,24 @@ export function ProductCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-3.5 pt-3 sm:p-4">
-        <h3 className="line-clamp-2 text-[14px] leading-snug font-semibold sm:text-base">
-          {product.name}
-        </h3>
-        <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/50 sm:text-[13px]">
-          {product.description}
-        </p>
-        <div className="mt-auto flex items-center justify-between pt-3">
+      <div className="flex flex-1 flex-col justify-between p-3.5 pt-3 sm:p-4">
+        <div>
+          <h3 className="line-clamp-2 min-h-[2.4rem] text-[14px] leading-snug font-semibold sm:min-h-[2.75rem] sm:text-base">
+            {product.name}
+          </h3>
+          <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-[12px] leading-relaxed text-white/50 sm:text-[13px]">
+            {product.description}
+          </p>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3">
           <span className="text-[15px] font-bold tabular-nums sm:text-base">
             {formatVND(product.price)}
           </span>
           <span
             aria-hidden
             className={cn(
-              "grid size-9 place-items-center rounded-xl transition duration-300",
+              "grid size-9 shrink-0 place-items-center rounded-xl transition duration-300",
               blocked
                 ? "bg-white/10 text-white/40"
                 : "bg-white text-black group-hover:rotate-90 group-active:scale-90",

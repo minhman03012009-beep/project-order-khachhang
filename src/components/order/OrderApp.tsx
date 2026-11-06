@@ -2,14 +2,11 @@
 
 import {
   Clock,
-  Flame,
-  Lock,
+  Phone,
   Search,
-  Sparkles,
   UtensilsCrossed,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CartBar } from "@/components/order/CartBar";
 import { CheckoutSheet } from "@/components/order/CheckoutSheet";
@@ -23,7 +20,6 @@ import { Toaster, toast } from "@/components/ui/Toast";
 import { api } from "@/lib/api";
 import { lineTotal, useOrderStore, type CartItem } from "@/lib/store";
 import type { MenuResponse, Order, Product } from "@/lib/types";
-import { formatVND } from "@/lib/utils";
 
 export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null }) {
   const mounted = useMounted();
@@ -104,7 +100,6 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
         if (cancelled) return;
         setTrackedOrder(o);
         if (o.status === "COMPLETED" || o.status === "CANCELLED") {
-          // Keep trackedOrder in memory for viewing, but clear active badge if older than 2 hours
           const ageMs = Date.now() - new Date(o.created_at).getTime();
           if (ageMs > 2 * 60 * 60 * 1000) setActiveOrder(null);
         }
@@ -125,7 +120,7 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
   // Filtered products
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products;
+    if (!q || products.length <= 8) return products;
     return products.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
@@ -202,7 +197,6 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
   };
 
   const handleOrderPlaced = (order: Order, count: number | null) => {
-    // Save snapshot for 1-click reorder next time
     if (cart.length > 0) {
       const snapTotal = cart.reduce((s, it) => s + lineTotal(it), 0);
       setLastOrder({
@@ -288,20 +282,19 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
           tableNumber={mounted ? tableNumber : undefined}
         />
 
-        {/* Quick Search & Menu Header */}
-        <div className="pt-1">
+        {/* Menu Header (Clean & Minimalist) */}
+        <div className="pt-2">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Flame className="size-4.5 text-white/80" />
-              <h1 className="text-lg font-bold tracking-tight">Thực đơn Mì Trộn</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-lg font-bold tracking-tight text-white">Thực đơn Mì Trộn</h1>
               {products.length > 0 && (
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-white/60 tabular-nums">
+                <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/60 tabular-nums">
                   {products.length} món
                 </span>
               )}
             </div>
 
-            {products.length > 3 && (
+            {products.length > 8 && (
               <div className="relative w-44 sm:w-56">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-white/40" />
                 <input
@@ -325,23 +318,6 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
               </div>
             )}
           </div>
-
-          {/* Available Toppings Preview Strip */}
-          {toppings.length > 0 && (
-            <div className="no-scrollbar -mx-4 mt-2.5 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
-              <span className=" inline-flex shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/90">
-                <Sparkles className="size-3" /> {toppings.length} Topping tự chọn:
-              </span>
-              {toppings.map((t) => (
-                <span
-                  key={t.id}
-                  className="shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-white/60"
-                >
-                  {t.name} <b className="text-white/80">+{formatVND(t.price)}</b>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* 3.2 Menu Grid */}
@@ -384,16 +360,22 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
         )}
       </main>
 
-      {/* Subtle footer with Admin link */}
-      <footer className="mt-12 border-t border-white/10 pt-6 text-center text-xs text-white/35">
-        <p>{settings?.store_name ?? "Tiệm Mì Indomie"} • Đặt món siêu tốc Zero-Lag</p>
-        <div className="mt-2 flex items-center justify-center gap-4">
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-1 text-white/40 transition hover:text-white/80"
+      {/* Minimalist Footer with Hotline Support */}
+      <footer className="mt-12 border-t border-white/10 pt-6 text-center">
+        <p className="text-xs font-medium text-white/45">
+          {settings?.store_name ?? "Tiệm Mì Indomie"} • Mở cửa mỗi ngày
+        </p>
+        <div className="mt-3 flex justify-center">
+          <a
+            href="tel:0327469961"
+            className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-medium text-white/80 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
           >
-            <Lock className="size-3" /> Quản trị quán (/admin)
-          </Link>
+            <Phone className="size-3.5 text-white/70" />
+            <span>
+              Hotline hỗ trợ / đặt món nhanh:{" "}
+              <b className="font-semibold tracking-wide text-white tabular-nums">0327 469 961</b>
+            </span>
+          </a>
         </div>
       </footer>
 
@@ -445,4 +427,3 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
     </div>
   );
 }
-
