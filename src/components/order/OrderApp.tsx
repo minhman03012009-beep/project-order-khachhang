@@ -7,7 +7,8 @@ import {
   UtensilsCrossed,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CartBar } from "@/components/order/CartBar";
 import { CheckoutSheet } from "@/components/order/CheckoutSheet";
 import { OrderStatusSheet } from "@/components/order/OrderStatusSheet";
@@ -22,7 +23,25 @@ import { lineTotal, useOrderStore, type CartItem } from "@/lib/store";
 import type { MenuResponse, Order, Product } from "@/lib/types";
 
 export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null }) {
+  const router = useRouter();
   const mounted = useMounted();
+  const tapRef = useRef<{ count: number; timer: ReturnType<typeof setTimeout> | null }>({
+    count: 0,
+    timer: null,
+  });
+
+  const handleSecretAdminTap = () => {
+    if (tapRef.current.timer) clearTimeout(tapRef.current.timer);
+    tapRef.current.count += 1;
+    if (tapRef.current.count >= 5) {
+      tapRef.current.count = 0;
+      router.push("/admin");
+      return;
+    }
+    tapRef.current.timer = setTimeout(() => {
+      tapRef.current.count = 0;
+    }, 1800);
+  };
 
   const [menu, setMenu] = useState<MenuResponse | null>(initialMenu ?? null);
   const [loadingMenu, setLoadingMenu] = useState(!initialMenu);
@@ -240,10 +259,10 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
   const trackingCode = mounted ? (trackedOrder?.order_code ?? activeOrder?.code ?? null) : null;
 
   return (
-    <div className="mx-auto min-h-dvh max-w-2xl px-4 pb-32">
+    <div className="mx-auto min-h-dvh max-w-2xl px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32">
       <Toaster />
 
-      {/* 3.1 Header */}
+      {/* Active Order Tracking Pill (only visible when an order is in progress) */}
       <StoreHeader
         settings={settings}
         trackingCode={trackingCode}
@@ -282,10 +301,13 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
           tableNumber={mounted ? tableNumber : undefined}
         />
 
-        {/* Menu Header (Clean & Minimalist) */}
+        {/* Menu Header (Clean & Minimalist — 5 taps on title opens /admin) */}
         <div className="pt-2">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
+            <div
+              onClick={handleSecretAdminTap}
+              className="flex cursor-default select-none items-center gap-2.5"
+            >
               <h1 className="text-lg font-bold tracking-tight text-white">Thực đơn Mì Trộn</h1>
               {products.length > 0 && (
                 <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/60 tabular-nums">
@@ -360,9 +382,12 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
         )}
       </main>
 
-      {/* Minimalist Footer with Hotline Support */}
+      {/* Minimalist Footer with Hotline Support (5 taps on store name also opens /admin) */}
       <footer className="mt-12 border-t border-white/10 pt-6 text-center">
-        <p className="text-xs font-medium text-white/45">
+        <p
+          onClick={handleSecretAdminTap}
+          className="inline-block cursor-default select-none text-xs font-medium text-white/45"
+        >
           {settings?.store_name ?? "Tiệm Mì Indomie"} • Mở cửa mỗi ngày
         </p>
         <div className="mt-3 flex justify-center">
