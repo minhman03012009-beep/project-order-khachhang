@@ -23,10 +23,7 @@ export function QtyStepper({
   collapsible = false,
   label = "số lượng",
 }: QtyStepperProps) {
-  const btn =
-    size === "sm"
-      ? "size-8 rounded-xl"
-      : "size-10 rounded-2xl";
+  const btn = size === "sm" ? "size-8 rounded-xl" : "size-10 rounded-2xl";
   const icon = size === "sm" ? "size-3.5" : "size-4";
 
   if (collapsible && value === 0) {
@@ -37,7 +34,7 @@ export function QtyStepper({
         aria-label={`Thêm ${label}`}
         className={cn(
           btn,
-          "grid cursor-pointer place-items-center border border-white/15 bg-white/5 text-white transition hover:border-white/40 hover:bg-white hover:text-black active:scale-90",
+          "grid cursor-pointer place-items-center border border-line-strong bg-surface text-fg transition hover:border-accent hover:bg-accent hover:text-accent-fg active:scale-90",
         )}
       >
         <Plus className={icon} />
@@ -48,7 +45,7 @@ export function QtyStepper({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-1 border border-white/10 bg-white/5 p-1",
+        "inline-flex items-center gap-1 border border-line bg-surface p-1",
         size === "sm" ? "rounded-2xl" : "rounded-[1.25rem]",
       )}
     >
@@ -59,7 +56,7 @@ export function QtyStepper({
         aria-label={`Giảm ${label}`}
         className={cn(
           btn,
-          "grid cursor-pointer place-items-center text-white/80 transition hover:bg-white/10 active:scale-90 disabled:opacity-30",
+          "grid cursor-pointer place-items-center text-fg/80 transition hover:bg-chip active:scale-90 disabled:opacity-30",
         )}
       >
         <Minus className={icon} />
@@ -80,7 +77,7 @@ export function QtyStepper({
         aria-label={`Tăng ${label}`}
         className={cn(
           btn,
-          "grid cursor-pointer place-items-center bg-white text-black transition hover:bg-white/90 active:scale-90 disabled:opacity-30",
+          "grid cursor-pointer place-items-center bg-accent text-accent-fg transition hover:opacity-90 active:scale-90 disabled:opacity-30",
         )}
       >
         <Plus className={icon} />

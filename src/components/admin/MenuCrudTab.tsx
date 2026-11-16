@@ -8,7 +8,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fileToCompressedDataUrl } from "@/components/admin/image-utils";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Toggle } from "@/components/ui/primitives";
@@ -25,15 +25,20 @@ interface ItemDraft {
   name: string;
   description: string;
   price: number;
+  original_price: number | null;
+  category: string;
+  badge_text: string;
   image_url: string;
   is_available: boolean;
   sort_order: number;
 }
 
 const QUICK_PRICES: Record<Kind, number[]> = {
-  products: [25000, 30000, 32000, 35000, 39000, 45000],
+  products: [25000, 30000, 32000, 35000, 39000, 45000, 59000],
   toppings: [5000, 6000, 8000, 10000, 12000, 15000],
 };
+
+const CATEGORY_PRESETS = ["Món chính", "Mì trộn", "Mì nước", "Combo", "Món ăn kèm", "Đồ uống"];
 
 export function MenuCrudTab({ kind }: { kind: Kind }) {
   const isProduct = kind === "products";
@@ -43,22 +48,6 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
   const [saving, setSaving] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const loadItems = useCallback(async () => {
-    try {
-      if (isProduct) {
-        const res = await api<{ products: Product[] }>("/api/admin/products");
-        setItems(res.products);
-      } else {
-        const res = await api<{ toppings: Topping[] }>("/api/admin/toppings");
-        setItems(res.toppings);
-      }
-    } catch (e) {
-      toast(errorMessage(e), "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [isProduct]);
 
   useEffect(() => {
     let active = true;
@@ -80,11 +69,28 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
     };
   }, [isProduct]);
 
+  const reloadNow = async () => {
+    try {
+      if (isProduct) {
+        const res = await api<{ products: Product[] }>("/api/admin/products");
+        setItems(res.products);
+      } else {
+        const res = await api<{ toppings: Topping[] }>("/api/admin/toppings");
+        setItems(res.toppings);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
   const openCreate = () => {
     setDraft({
       name: "",
       description: "",
       price: isProduct ? 25000 : 10000,
+      original_price: null,
+      category: "Món chính",
+      badge_text: "",
       image_url: "",
       is_available: true,
       sort_order: items.length + 1,
@@ -92,11 +98,15 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
   };
 
   const openEdit = (item: Product | Topping) => {
+    const prod = "description" in item ? (item as Product) : null;
     setDraft({
       id: item.id,
       name: item.name,
-      description: "description" in item ? item.description : "",
+      description: prod?.description ?? "",
       price: item.price,
+      original_price: prod?.original_price ?? null,
+      category: prod?.category || "Món chính",
+      badge_text: prod?.badge_text ?? "",
       image_url: item.image_url,
       is_available: item.is_available,
       sort_order: item.sort_order,
@@ -104,7 +114,6 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
   };
 
   const handleToggleAvailable = async (item: Product | Topping, nextVal: boolean) => {
-    // Optimistic update
     setItems((cur) =>
       cur.map((x) => (x.id === item.id ? { ...x, is_available: nextVal } : x)),
     );
@@ -122,12 +131,10 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
         });
         setItems((cur) => cur.map((x) => (x.id === item.id ? res.topping : x)));
       }
-      toast(
-        `${item.name}: ${nextVal ? "🟢 Đã bật Còn hàng" : "🔴 Đã báo Tạm hết"}`,
-      );
+      toast(`${item.name}: ${nextVal ? "🟢 Đã bật Còn hàng" : "🔴 Đã báo Tạm hết"}`);
     } catch (e) {
       toast(errorMessage(e), "error");
-      void loadItems();
+      void reloadNow();
     }
   };
 
@@ -215,7 +222,7 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
           </h2>
           <p className="mt-0.5 text-xs text-white/55">
             {isProduct
-              ? "Thêm món mới, đổi giá, đổi ảnh sản phẩm hoặc gạt tắt những món vừa hết."
+              ? "Thêm món mới, phân loại danh mục, giá gốc gạch ngang, đổi ảnh hoặc gạt tắt món hết."
               : "Thêm topping mới, tùy chỉnh giá cộng thêm, hình ảnh và trạng thái Còn/Hết."}
           </p>
         </div>
@@ -246,82 +253,103 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {items.map((item) => (
-            <article
-              key={item.id}
-              className={cn(
-                "card flex items-center gap-3.5 p-3 transition",
-                !item.is_available && "opacity-60",
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => openEdit(item)}
-                className="relative size-20 shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-white/10"
+          {items.map((item) => {
+            const prod = "description" in item ? (item as Product) : null;
+            return (
+              <article
+                key={item.id}
+                className={cn(
+                  "card flex items-center gap-3.5 p-3 transition",
+                  !item.is_available && "opacity-60",
+                )}
               >
-                <SmartImage src={item.image_url} alt={item.name} sizes="80px" />
-                {!item.is_available && (
-                  <span className="absolute inset-0 grid place-items-center bg-black/70 text-[10px] font-bold text-white">
-                    TẠM HẾT
-                  </span>
-                )}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => openEdit(item)}
+                  className="relative size-20 shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-white/10"
+                >
+                  <SmartImage src={item.image_url} alt={item.name} sizes="80px" />
+                  {!item.is_available && (
+                    <span className="absolute inset-0 grid place-items-center bg-black/70 text-[10px] font-bold text-white">
+                      TẠM HẾT
+                    </span>
+                  )}
+                </button>
 
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="truncate text-sm font-bold">{item.name}</h3>
-                  <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-white/40 tabular-nums">
-                    #{item.sort_order}
-                  </span>
-                </div>
-
-                {"description" in item && item.description && (
-                  <p className="mt-0.5 line-clamp-1 text-xs text-white/50">{item.description}</p>
-                )}
-
-                <p className="mt-1 text-sm font-extrabold text-white tabular-nums">
-                  {isProduct ? formatVND(item.price) : `+${formatVND(item.price)}`}
-                </p>
-
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      checked={item.is_available}
-                      onChange={(v) => void handleToggleAvailable(item, v)}
-                      label={`Còn hàng ${item.name}`}
-                    />
-                    <span
-                      className={cn(
-                        "text-[11px] font-semibold",
-                        item.is_available ? "text-ok" : "text-white/40",
-                      )}
-                    >
-                      {item.is_available ? "Còn hàng" : "Tạm hết"}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="truncate text-sm font-bold">{item.name}</h3>
+                    <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-white/40 tabular-nums">
+                      #{item.sort_order}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(item)}
-                      aria-label={`Sửa ${item.name}`}
-                      className="grid size-8 cursor-pointer place-items-center rounded-xl border border-white/10 bg-white/5 text-white/75 transition hover:bg-white hover:text-black"
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(item)}
-                      aria-label={`Xóa ${item.name}`}
-                      className="grid size-8 cursor-pointer place-items-center rounded-xl border border-white/10 bg-white/5 text-white/45 transition hover:border-danger/40 hover:bg-danger/15 hover:text-danger"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                  {prod && (
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      {prod.category && (
+                        <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] text-white/70">
+                          {prod.category}
+                        </span>
+                      )}
+                      {prod.badge_text && (
+                        <span className="rounded-md bg-warn/20 px-1.5 py-0.5 text-[10px] font-semibold text-warn">
+                          {prod.badge_text}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    <p className="text-sm font-extrabold text-white tabular-nums">
+                      {isProduct ? formatVND(item.price) : `+${formatVND(item.price)}`}
+                    </p>
+                    {prod?.original_price != null && prod.original_price > item.price && (
+                      <span className="text-xs text-white/40 line-through tabular-nums">
+                        {formatVND(prod.original_price)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Toggle
+                        checked={item.is_available}
+                        onChange={(v) => void handleToggleAvailable(item, v)}
+                        label={`Còn hàng ${item.name}`}
+                      />
+                      <span
+                        className={cn(
+                          "text-[11px] font-semibold",
+                          item.is_available ? "text-ok" : "text-white/40",
+                        )}
+                      >
+                        {item.is_available ? "Còn hàng" : "Tạm hết"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(item)}
+                        aria-label={`Sửa ${item.name}`}
+                        className="grid size-8 cursor-pointer place-items-center rounded-xl border border-white/10 bg-white/5 text-white/75 transition hover:bg-white hover:text-black"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(item)}
+                        aria-label={`Xóa ${item.name}`}
+                        className="grid size-8 cursor-pointer place-items-center rounded-xl border border-white/10 bg-white/5 text-white/45 transition hover:border-danger/40 hover:bg-danger/15 hover:text-danger"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
 
@@ -424,7 +452,7 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
 
             <div>
               <label className="label">
-                {isProduct ? "Tên món mì" : "Tên Topping / Vắt mì"}
+                {isProduct ? "Tên món" : "Tên Topping / Vắt mì"}
               </label>
               <input
                 value={draft.name}
@@ -439,21 +467,62 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
             </div>
 
             {isProduct && (
-              <div>
-                <label className="label">Mô tả nguyên liệu</label>
-                <textarea
-                  rows={2}
-                  value={draft.description}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  placeholder="VD: Full topping trứng lòng đào, xúc xích nướng, chả cá Hàn Quốc…"
-                  className="field resize-none"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="label">Mô tả nguyên liệu</label>
+                  <textarea
+                    rows={2}
+                    value={draft.description}
+                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                    placeholder="VD: Full topping trứng lòng đào, xúc xích nướng, chả cá Hàn Quốc…"
+                    className="field resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Danh mục món</label>
+                    <input
+                      value={draft.category}
+                      onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+                      placeholder="VD: Mì trộn, Đồ uống"
+                      className="field text-sm"
+                    />
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {CATEGORY_PRESETS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setDraft({ ...draft, category: c })}
+                          className={cn(
+                            "cursor-pointer rounded-lg border px-2 py-0.5 text-[10px]",
+                            draft.category === c
+                              ? "border-white bg-white text-black font-bold"
+                              : "border-white/10 bg-white/5 text-white/60",
+                          )}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label">Nhãn nổi bật (Tùy chọn)</label>
+                    <input
+                      value={draft.badge_text}
+                      onChange={(e) => setDraft({ ...draft, badge_text: e.target.value })}
+                      placeholder="VD: Bán chạy, Mới"
+                      className="field text-sm"
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Giá tiền (VNĐ)</label>
+                <label className="label">Giá bán (VNĐ)</label>
                 <input
                   type="number"
                   step={1000}
@@ -465,6 +534,40 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
                   className="field font-bold tabular-nums"
                 />
               </div>
+              {isProduct ? (
+                <div>
+                  <label className="label">Giá gốc gạch ngang (nếu KM)</label>
+                  <input
+                    type="number"
+                    step={1000}
+                    min={0}
+                    value={draft.original_price ?? ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        original_price: e.target.value ? Math.max(0, Number(e.target.value)) : null,
+                      })
+                    }
+                    placeholder="Bỏ trống nếu không giảm"
+                    className="field tabular-nums"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="label">Thứ tự hiển thị</label>
+                  <input
+                    type="number"
+                    value={draft.sort_order}
+                    onChange={(e) =>
+                      setDraft({ ...draft, sort_order: Number(e.target.value) || 0 })
+                    }
+                    className="field tabular-nums"
+                  />
+                </div>
+              )}
+            </div>
+
+            {isProduct && (
               <div>
                 <label className="label">Thứ tự hiển thị</label>
                 <input
@@ -473,10 +576,10 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
                   onChange={(e) =>
                     setDraft({ ...draft, sort_order: Number(e.target.value) || 0 })
                   }
-                  className="field tabular-nums"
+                  className="field max-w-[140px] tabular-nums"
                 />
               </div>
-            </div>
+            )}
 
             {/* Quick Price Suggestions */}
             <div>
@@ -519,4 +622,3 @@ export function MenuCrudTab({ kind }: { kind: Kind }) {
     </div>
   );
 }
-

@@ -22,7 +22,7 @@ export function SmartImage({ src, alt, sizes, className, priority }: SmartImageP
     return (
       <div
         className={cn(
-          "absolute inset-0 grid place-items-center bg-gradient-to-br from-white/10 to-white/[0.02] text-white/30",
+          "absolute inset-0 grid place-items-center bg-chip text-subtle",
           className,
         )}
       >

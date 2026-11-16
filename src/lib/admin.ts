@@ -39,11 +39,18 @@ const int = (v: unknown, fallback = 0) => {
 export function sanitizeProduct(raw: Partial<Product>, id?: string): Product {
   const name = String(raw.name ?? "").trim().slice(0, 120);
   if (!name) throw new Error("Tên món không được để trống.");
+  const orig =
+    raw.original_price != null && Number(raw.original_price) > 0
+      ? Math.max(0, int(raw.original_price))
+      : null;
   return {
     id: id ?? raw.id ?? randomUUID(),
     name,
     description: String(raw.description ?? "").trim().slice(0, 400),
     price: Math.max(0, int(raw.price)),
+    original_price: orig,
+    category: String(raw.category ?? "Món chính").trim().slice(0, 50) || "Món chính",
+    badge_text: String(raw.badge_text ?? "").trim().slice(0, 40),
     image_url: cleanImage(raw.image_url),
     is_available: raw.is_available !== false,
     sort_order: int(raw.sort_order, 0),

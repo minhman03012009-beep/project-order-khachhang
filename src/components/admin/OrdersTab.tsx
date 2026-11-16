@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  AlertTriangle,
   Banknote,
   Bell,
   BellOff,
   Bike,
+  CheckCircle2,
   ChefHat,
   CircleCheckBig,
   CircleX,
@@ -16,6 +18,7 @@ import {
   Printer,
   RefreshCw,
   Search,
+  ShieldCheck,
   Store,
   TrendingUp,
 } from "lucide-react";
@@ -25,7 +28,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Toggle } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
-import type { Order, OrderStatus, StoreSettings } from "@/lib/types";
+import type { Order, OrderStatus, PaymentStatus, StoreSettings } from "@/lib/types";
 import { cn, formatVND, STATUS_LABEL } from "@/lib/utils";
 
 interface OrdersTabProps {
@@ -87,36 +90,31 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
 
   const knownIdsRef = useRef<Set<string> | null>(null);
 
-  const fetchOrders = useCallback(
-    async (silent = false) => {
-      if (!silent) setRefreshing(true);
-      try {
-        const res = await api<{ orders: Order[] }>("/api/admin/orders");
-        const incoming = res.orders;
+  const fetchOrders = useCallback(async (silent = false) => {
+    if (!silent) setRefreshing(true);
+    try {
+      const res = await api<{ orders: Order[] }>("/api/admin/orders");
+      const incoming = res.orders;
 
-        // Detect newly arrived PENDING orders to ring kitchen bell
-        if (knownIdsRef.current !== null) {
-          const newPending = incoming.filter(
-            (o) => o.status === "PENDING" && !knownIdsRef.current!.has(o.id),
-          );
-          if (newPending.length > 0) {
-            if (soundEnabled) playKitchenBell();
-            toast(`🚨 Có đơn mới: ${newPending.map((o) => o.order_code).join(", ")}!`);
-          }
+      if (knownIdsRef.current !== null) {
+        const newPending = incoming.filter(
+          (o) => o.status === "PENDING" && !knownIdsRef.current!.has(o.id),
+        );
+        if (newPending.length > 0) {
+          if (soundEnabled) playKitchenBell();
+          toast(`🚨 Có đơn mới: ${newPending.map((o) => o.order_code).join(", ")}!`);
         }
-        knownIdsRef.current = new Set(incoming.map((o) => o.id));
-        setOrders(incoming);
-      } catch (e) {
-        if (!silent) toast(errorMessage(e), "error");
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
       }
-    },
-    [soundEnabled],
-  );
+      knownIdsRef.current = new Set(incoming.map((o) => o.id));
+      setOrders(incoming);
+    } catch (e) {
+      if (!silent) toast(errorMessage(e), "error");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [soundEnabled]);
 
-  // Poll every 5 seconds for live kitchen view
   useEffect(() => {
     const poll = () => {
       api<{ orders: Order[] }>("/api/admin/orders")
@@ -175,7 +173,22 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
     }
   };
 
-  // KPI calculations
+  const handleChangePaymentStatus = async (order: Order, payment_status: PaymentStatus) => {
+    setUpdatingId(order.id);
+    try {
+      const res = await api<{ order: Order }>(`/api/admin/orders/${order.id}`, {
+        method: "PATCH",
+        json: { payment_status },
+      });
+      setOrders((cur) => cur.map((o) => (o.id === order.id ? res.order : o)));
+      toast(`${order.order_code}: ${payment_status === "PAID" ? "💚 Đã thu tiền" : "Chưa thu tiền"}`);
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString("vi-VN");
     const todayOrders = orders.filter(
@@ -235,11 +248,9 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
             {settings.is_open ? "🟢" : "🔴"}
           </span>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold sm:text-lg">
-                {settings.is_open ? "Quán đang MỞ CỬA nhận đơn" : "Quán đang TẠM ĐÓNG CỬA"}
-              </h2>
-            </div>
+            <h2 className="text-base font-bold sm:text-lg">
+              {settings.is_open ? "Quán đang MỞ CỬA nhận đơn" : "Quán đang TẠM ĐÓNG CỬA"}
+            </h2>
             <p className="mt-0.5 text-xs text-white/55">
               {settings.is_open
                 ? "Khách hàng có thể quét QR tại bàn hoặc đặt giao hàng bình thường."
@@ -269,9 +280,7 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
           <p className="text-xs text-white/50">Đơn đang xử lý</p>
           <p className="mt-1 flex items-baseline gap-2 text-2xl font-extrabold tabular-nums">
             {stats.activeCount}
-            {stats.activeCount > 0 && (
-              <span className="size-2 animate-ping rounded-full bg-warn" />
-            )}
+            {stats.activeCount > 0 && <span className="size-2 animate-ping rounded-full bg-warn" />}
           </p>
         </div>
 
@@ -388,6 +397,7 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
           {filteredOrders.map((order) => {
             const isDelivery = order.order_type === "DELIVERY";
             const busy = updatingId === order.id;
+            const isPaid = order.payment_status === "PAID";
             const timeStr = new Date(order.created_at).toLocaleString("vi-VN", {
               hour: "2-digit",
               minute: "2-digit",
@@ -404,7 +414,7 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                   order.status === "CANCELLED" && "opacity-60",
                 )}
               >
-                {/* Top row: Code, Type Badge, Status Badge, Print Button */}
+                {/* Top row */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-lg font-extrabold tracking-tight tabular-nums">
@@ -423,12 +433,25 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                         <>
                           <Bike className="size-3.5" /> GIAO TẬN NƠI
                         </>
+                      ) : order.is_self_pickup ? (
+                        <>
+                          <Store className="size-3.5" /> GHÉ QUÁN LẤY
+                        </>
                       ) : (
                         <>
                           <Store className="size-3.5" />{" "}
                           {order.table_number ? order.table_number.toUpperCase() : "TẠI BÀN / MANG ĐI"}
                         </>
                       )}
+                    </span>
+
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[11px] font-bold",
+                        isPaid ? "bg-ok/20 text-ok" : "bg-white/10 text-white/60",
+                      )}
+                    >
+                      {isPaid ? "💚 ĐÃ THU TIỀN" : "CHƯA THU"}
                     </span>
 
                     <span className="text-xs text-white/40">{timeStr}</span>
@@ -460,10 +483,26 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                   </div>
                 </div>
 
+                {/* Zero-Trust Fraud & Call Verification Alert */}
+                {order.require_call_alert && order.status !== "COMPLETED" && order.status !== "CANCELLED" && (
+                  <div className="mt-3 flex items-center gap-2 rounded-2xl border border-danger/40 bg-danger/15 px-3 py-2 text-xs font-bold text-danger">
+                    <AlertTriangle className="size-4 shrink-0" />
+                    <span>
+                      CẦN GỌI XÁC NHẬN TRƯỚC KHI NẤU ({order.trust_label ?? "CẢNH BÁO"} • Điểm rủi ro:{" "}
+                      {order.risk_score ?? 0}/100)
+                    </span>
+                  </div>
+                )}
+
                 {/* Customer & Delivery Details */}
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/75">
                   <span>
                     👤 Khách: <b className="text-white">{order.customer_name || "Khách lẻ"}</b>
+                    {order.trust_label === "KHÁCH QUEN" && (
+                      <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-md bg-ok/15 px-1.5 py-0.5 text-[10px] font-bold text-ok">
+                        <ShieldCheck className="size-3" /> Khách quen
+                      </span>
+                    )}
                   </span>
                   {order.customer_phone && (
                     <a
@@ -472,6 +511,11 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                     >
                       <Phone className="size-3" /> {order.customer_phone}
                     </a>
+                  )}
+                  {isDelivery && order.scheduled_slot && (
+                    <span className="rounded-lg bg-white/5 px-2 py-0.5 text-white/70">
+                      🕒 {order.scheduled_slot}
+                    </span>
                   )}
                   {isDelivery && order.delivery_address && (
                     <span className="flex items-center gap-1 text-white/80">
@@ -504,6 +548,11 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                             x{item.quantity}
                           </span>
                           {item.productName}
+                          {item.spicyLevel != null && (
+                            <span className="ml-2 rounded-md bg-danger/20 px-1.5 py-0.5 text-[11px] font-bold text-danger">
+                              Cấp {item.spicyLevel}
+                            </span>
+                          )}
                         </span>
                         <span className="font-semibold tabular-nums text-white/80">
                           {formatVND(item.subtotal)}
@@ -527,10 +576,14 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                 </ul>
 
                 {/* General Notes */}
-                {(order.quick_notes.length > 0 || order.custom_note) && (
+                {(order.quick_notes.length > 0 || order.custom_note || order.take_cutlery === false) && (
                   <p className="mt-2.5 rounded-xl border border-warn/25 bg-warn/10 px-3 py-2 text-xs text-warn">
                     <b>📝 Ghi chú đơn:</b>{" "}
-                    {[...order.quick_notes.map((n) => `[${n}]`), order.custom_note]
+                    {[
+                      order.take_cutlery === false ? "[Không lấy đũa muỗng nhựa]" : "",
+                      ...order.quick_notes.map((n) => `[${n}]`),
+                      order.custom_note,
+                    ]
                       .filter(Boolean)
                       .join(" — ")}
                   </p>
@@ -538,7 +591,7 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
 
                 {/* Bottom row: Payment + Total + Quick Status Buttons */}
                 <div className="mt-3.5 flex flex-col gap-3 border-t border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
                     <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium">
                       {order.payment_method === "VIETQR" ? (
                         <>
@@ -550,11 +603,23 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                         </>
                       )}
                     </span>
+
+                    {!isPaid && order.status !== "CANCELLED" && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleChangePaymentStatus(order, "PAID")}
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-xl border border-ok/40 bg-ok/15 px-2.5 py-1 text-xs font-semibold text-ok transition hover:bg-ok/25"
+                      >
+                        <CheckCircle2 className="size-3.5" /> Xác nhận đã thu tiền
+                      </button>
+                    )}
+
                     <span className="text-base font-extrabold tabular-nums">
                       Tổng thu: {formatVND(order.total_amount)}
-                      {order.shipping_fee > 0 && (
-                        <span className="ml-1.5 text-xs font-normal text-white/45">
-                          (gồm ship {formatVND(order.shipping_fee)})
+                      {(order.discount_amount ?? 0) > 0 && (
+                        <span className="ml-1.5 text-xs font-normal text-ok">
+                          (-{formatVND(order.discount_amount!)})
                         </span>
                       )}
                     </span>
@@ -562,7 +627,6 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
 
                   <div className="flex flex-wrap items-center gap-1.5">
                     {ACTION_BUTTONS.map((btn) => {
-                      // Hide "Đang giao" button for Dine-in orders to keep UI super clean
                       if (!isDelivery && btn.status === "DELIVERING") return null;
                       const Icon = btn.icon;
                       const isCurrent = order.status === btn.status;
@@ -613,11 +677,14 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
           <div className="mx-auto max-w-xs rounded-2xl bg-white p-5 font-mono text-xs text-black shadow-lg">
             <div className="border-b border-dashed border-black/40 pb-2 text-center">
               <p className="text-base font-bold">{settings.store_name.toUpperCase()}</p>
+              {settings.store_address && <p className="text-[10px]">{settings.store_address}</p>}
               <p className="mt-0.5 text-lg font-extrabold">{printingOrder.order_code}</p>
               <p className="text-[11px]">
                 {printingOrder.order_type === "DELIVERY"
                   ? "GIAO TẬN NƠI"
-                  : printingOrder.table_number || "TẠI BÀN / MANG ĐI"}
+                  : printingOrder.is_self_pickup
+                    ? "GHÉ QUÁN LẤY"
+                    : printingOrder.table_number || "TẠI BÀN / MANG ĐI"}
               </p>
               <p className="text-[10px] text-black/60">
                 {new Date(printingOrder.created_at).toLocaleString("vi-VN")}
@@ -628,6 +695,7 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
               <p>Khách: {printingOrder.customer_name || "Khách lẻ"}</p>
               {printingOrder.customer_phone && <p>SĐT: {printingOrder.customer_phone}</p>}
               {printingOrder.delivery_address && <p>Đ/c: {printingOrder.delivery_address}</p>}
+              {printingOrder.take_cutlery === false && <p>* KHÔNG LẤY ĐŨA MUỖNG NHỰA</p>}
             </div>
 
             <div className="space-y-1.5 border-b border-dashed border-black/40 py-2">
@@ -636,6 +704,7 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                   <div className="flex justify-between font-bold">
                     <span>
                       {it.quantity}x {it.productName}
+                      {it.spicyLevel != null ? ` (Cấp ${it.spicyLevel})` : ""}
                     </span>
                     <span>{formatVND(it.subtotal)}</span>
                   </div>
@@ -669,12 +738,24 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
                   <span>{formatVND(printingOrder.shipping_fee)}</span>
                 </div>
               )}
+              {(printingOrder.discount_amount ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span>Giảm giá:</span>
+                  <span>-{formatVND(printingOrder.discount_amount!)}</span>
+                </div>
+              )}
               <div className="mt-1 flex justify-between text-sm font-extrabold">
                 <span>TỔNG THU:</span>
                 <span>{formatVND(printingOrder.total_amount)}</span>
               </div>
               <p className="mt-1 text-center text-[11px]">
-                ({printingOrder.payment_method === "VIETQR" ? "Chuyển khoản VietQR" : "Tiền mặt"})
+                (
+                {printingOrder.payment_status === "PAID"
+                  ? "ĐÃ THANH TOÁN"
+                  : printingOrder.payment_method === "VIETQR"
+                    ? "Chuyển khoản VietQR"
+                    : "Tiền mặt"}
+                )
               </p>
             </div>
           </div>
@@ -683,4 +764,3 @@ export function OrdersTab({ settings, onSettingsChanged }: OrdersTabProps) {
     </div>
   );
 }
-

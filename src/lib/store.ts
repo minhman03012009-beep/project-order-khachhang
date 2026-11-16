@@ -2,7 +2,14 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { OrderTopping, OrderType, PaymentMethod } from "./types";
+import type {
+  OrderStatus,
+  OrderTopping,
+  OrderType,
+  PaymentMethod,
+  SavedAddressItem,
+  ThemeMode,
+} from "./types";
 
 export interface CartItem {
   lineId: string;
@@ -11,6 +18,7 @@ export interface CartItem {
   image_url: string;
   basePrice: number;
   quantity: number;
+  spicyLevel?: number | null;
   toppings: OrderTopping[];
   quickTags: string[];
   itemNote: string;
@@ -30,11 +38,24 @@ export interface LastOrderSnapshot {
   total: number;
 }
 
+export interface OrderHistoryEntry {
+  id: string;
+  code: string;
+  total: number;
+  status: OrderStatus;
+  payment_method: PaymentMethod;
+  order_type: OrderType;
+  items: CartItem[];
+  trackingToken?: string;
+  createdAt: string;
+}
+
 export interface ActiveOrder {
   id: string;
   code: string;
   total: number;
   payment_method: PaymentMethod;
+  trackingToken?: string;
   createdAt: string;
 }
 
@@ -48,10 +69,11 @@ const uid = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-/** Two lines are "the same" if product, toppings and notes match → merge quantity. */
+/** Two lines are "the same" if product, spicyLevel, toppings and notes match → merge quantity. */
 const signature = (it: Omit<CartItem, "lineId" | "quantity">) =>
   JSON.stringify([
     it.productId,
+    it.spicyLevel ?? null,
     [...it.toppings].sort((a, b) => a.id.localeCompare(b.id)).map((t) => [t.id, t.quantity]),
     [...it.quickTags].sort(),
     it.itemNote.trim(),
@@ -65,6 +87,12 @@ interface OrderState {
   lastOrder: LastOrderSnapshot | null;
   activeOrder: ActiveOrder | null;
 
+  // Personalization
+  customerThemeMode: "auto" | ThemeMode;
+  savedAddresses: SavedAddressItem[];
+  orderHistory: OrderHistoryEntry[];
+  productOrderCounts: Record<string, number>;
+
   addItem: (item: Omit<CartItem, "lineId">) => void;
   addMany: (items: Omit<CartItem, "lineId">[]) => void;
   setQty: (lineId: string, qty: number) => void;
@@ -75,6 +103,12 @@ interface OrderState {
   setCustomer: (patch: Partial<SavedCustomer>) => void;
   setLastOrder: (snap: LastOrderSnapshot | null) => void;
   setActiveOrder: (order: ActiveOrder | null) => void;
+
+  setCustomerThemeMode: (mode: "auto" | ThemeMode) => void;
+  addSavedAddress: (addr: Omit<SavedAddressItem, "id">) => void;
+  removeSavedAddress: (id: string) => void;
+  recordOrderInHistory: (entry: OrderHistoryEntry) => void;
+  updateOrderHistoryStatus: (id: string, status: OrderStatus) => void;
 }
 
 function merge(cart: CartItem[], incoming: Omit<CartItem, "lineId">): CartItem[] {
@@ -98,6 +132,11 @@ export const useOrderStore = create<OrderState>()(
       lastOrder: null,
       activeOrder: null,
 
+      customerThemeMode: "auto",
+      savedAddresses: [],
+      orderHistory: [],
+      productOrderCounts: {},
+
       addItem: (item) => set((s) => ({ cart: merge(s.cart, item) })),
       addMany: (items) => set((s) => ({ cart: items.reduce(merge, s.cart) })),
       setQty: (lineId, qty) =>
@@ -116,6 +155,40 @@ export const useOrderStore = create<OrderState>()(
       setCustomer: (patch) => set((s) => ({ customer: { ...s.customer, ...patch } })),
       setLastOrder: (lastOrder) => set({ lastOrder }),
       setActiveOrder: (activeOrder) => set({ activeOrder }),
+
+      setCustomerThemeMode: (customerThemeMode) => set({ customerThemeMode }),
+      addSavedAddress: (addr) =>
+        set((s) => {
+          const clean = addr.address.trim();
+          if (!clean) return s;
+          const filtered = s.savedAddresses.filter(
+            (a) => a.address.toLowerCase() !== clean.toLowerCase(),
+          );
+          return {
+            savedAddresses: [{ ...addr, id: uid(), address: clean }, ...filtered].slice(0, 6),
+          };
+        }),
+      removeSavedAddress: (id) =>
+        set((s) => ({ savedAddresses: s.savedAddresses.filter((a) => a.id !== id) })),
+      recordOrderInHistory: (entry) =>
+        set((s) => {
+          const counts = { ...s.productOrderCounts };
+          for (const it of entry.items) {
+            counts[it.productId] = (counts[it.productId] ?? 0) + it.quantity;
+          }
+          const nextHistory = [
+            entry,
+            ...s.orderHistory.filter((h) => h.id !== entry.id),
+          ].slice(0, 15);
+          return {
+            orderHistory: nextHistory,
+            productOrderCounts: counts,
+          };
+        }),
+      updateOrderHistoryStatus: (id, status) =>
+        set((s) => ({
+          orderHistory: s.orderHistory.map((h) => (h.id === id ? { ...h, status } : h)),
+        })),
     }),
     {
       name: "indomie-order-v1",
@@ -127,6 +200,10 @@ export const useOrderStore = create<OrderState>()(
         customer: s.customer,
         lastOrder: s.lastOrder,
         activeOrder: s.activeOrder,
+        customerThemeMode: s.customerThemeMode,
+        savedAddresses: s.savedAddresses,
+        orderHistory: s.orderHistory,
+        productOrderCounts: s.productOrderCounts,
       }),
     },
   ),

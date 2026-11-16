@@ -1,5 +1,5 @@
 import "server-only";
-import type { Order } from "./types";
+import type { Order, OrderStatus } from "./types";
 import { formatVND } from "./utils";
 
 const esc = (s: string) =>
@@ -7,12 +7,56 @@ const esc = (s: string) =>
 
 const LINE = "────────────────────";
 
-export function buildOrderMessage(order: Order, customerOrderCount: number | null): string {
+export interface TelegramInlineButton {
+  text: string;
+  callback_data: string;
+}
+
+export interface TelegramInlineKeyboardMarkup {
+  inline_keyboard: TelegramInlineButton[][];
+}
+
+export function buildOrderInlineKeyboard(
+  orderId: string,
+  status: OrderStatus,
+): TelegramInlineKeyboardMarkup {
+  if (status === "COMPLETED" || status === "CANCELLED") {
+    return { inline_keyboard: [] };
+  }
+  if (status === "COOKING" || status === "DELIVERING") {
+    return {
+      inline_keyboard: [
+        [
+          { text: "✅ Hoàn tất", callback_data: `COMPLETED:${orderId}` },
+          { text: "❌ Hủy đơn", callback_data: `CANCELLED:${orderId}` },
+        ],
+      ],
+    };
+  }
+  return {
+    inline_keyboard: [
+      [
+        { text: "👨‍🍳 Nhận nấu", callback_data: `COOKING:${orderId}` },
+        { text: "✅ Hoàn tất", callback_data: `COMPLETED:${orderId}` },
+        { text: "❌ Hủy đơn", callback_data: `CANCELLED:${orderId}` },
+      ],
+    ],
+  };
+}
+
+export function buildOrderMessage(
+  order: Order,
+  customerOrderCount: number | null,
+  extraNote?: string,
+): string {
   const lines: string[] = [];
   lines.push(`🚨 <b>ĐƠN HÀNG MỚI (${esc(order.order_code)})</b>`);
 
   if (order.order_type === "DELIVERY") {
-    lines.push(`🏷️ Loại đơn: <b>🛵 GIAO TẬN NƠI</b>`);
+    const slot = order.scheduled_slot ? ` (${esc(order.scheduled_slot)})` : "";
+    lines.push(`🏷️ Loại đơn: <b>🛵 GIAO TẬN NƠI</b>${slot}`);
+  } else if (order.is_self_pickup) {
+    lines.push(`🏷️ Loại đơn: <b>🛍️ GHÉ QUÁN LẤY (MANG ĐI)</b>`);
   } else if (order.table_number) {
     lines.push(`🏷️ Loại đơn: <b>🏪 TẠI ${esc(order.table_number.toUpperCase())}</b>`);
   } else {
@@ -41,11 +85,20 @@ export function buildOrderMessage(order: Order, customerOrderCount: number | nul
     }
   }
 
+  if (order.risk_score != null && (order.risk_score >= 45 || order.require_call_alert)) {
+    lines.push(
+      `🛡️ Rủi ro: <b>${order.risk_score}/100 (${esc(order.trust_label ?? "CẢNH BÁO")})</b>${
+        order.require_call_alert ? " ⚠️ <b>Nên gọi xác nhận!</b>" : ""
+      }`,
+    );
+  }
+
   lines.push("");
   lines.push(`🍜 <b>CHI TIẾT MÓN ĐẶT:</b>`);
   order.items.forEach((item, i) => {
+    const spicyStr = item.spicyLevel != null ? ` [Cấp ${item.spicyLevel}]` : "";
     lines.push(
-      `<b>${i + 1}. ${esc(item.productName)} (x${item.quantity})</b> - ${formatVND(item.subtotal)}`,
+      `<b>${i + 1}. ${esc(item.productName)}${spicyStr} (x${item.quantity})</b> - ${formatVND(item.subtotal)}`,
     );
     if (item.selectedToppings.length) {
       const tops = item.selectedToppings
@@ -56,6 +109,10 @@ export function buildOrderMessage(order: Order, customerOrderCount: number | nul
     const notes = [...item.quickTags, item.itemNote].filter(Boolean).map(esc);
     if (notes.length) lines.push(`   + Ghi chú món: ${notes.join(", ")}`);
   });
+
+  if (order.take_cutlery === false) {
+    lines.push(`🌱 <i>Khách không lấy đũa muỗng nhựa</i>`);
+  }
 
   const generalNotes: string[] = [];
   if (order.quick_notes.length) {
@@ -72,10 +129,23 @@ export function buildOrderMessage(order: Order, customerOrderCount: number | nul
   if (order.shipping_fee > 0) {
     lines.push(`🛵 Phí ship: ${formatVND(order.shipping_fee)}`);
   }
-  lines.push(
-    `💳 Thanh toán: <b>${order.payment_method === "VIETQR" ? "Chuyển khoản VietQR" : "Tiền mặt"}</b>`,
-  );
+  if ((order.discount_amount ?? 0) > 0) {
+    lines.push(
+      `🎟️ Giảm giá${order.voucher_code ? ` (${esc(order.voucher_code)})` : ""}: -${formatVND(order.discount_amount!)}`,
+    );
+  }
+  const payBadge =
+    order.payment_status === "PAID"
+      ? `💚 ĐÃ THANH TOÁN (${order.payment_method})`
+      : order.payment_method === "VIETQR"
+        ? "Chuyển khoản VietQR"
+        : "Tiền mặt";
+  lines.push(`💳 Thanh toán: <b>${payBadge}</b>`);
   lines.push(`💰 <b>TỔNG THU: ${formatVND(order.total_amount)}</b>`);
+
+  if (extraNote) {
+    lines.push("", `📝 <i>${esc(extraNote)}</i>`);
+  }
   return lines.join("\n");
 }
 
@@ -83,6 +153,7 @@ export async function sendTelegram(
   token: string,
   chatId: string,
   text: string,
+  replyMarkup?: TelegramInlineKeyboardMarkup,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!token || !chatId) return { ok: false, error: "Chưa cấu hình Bot Token / Chat ID" };
   try {
@@ -94,6 +165,9 @@ export async function sendTelegram(
         text,
         parse_mode: "HTML",
         disable_web_page_preview: true,
+        ...(replyMarkup && replyMarkup.inline_keyboard.length > 0
+          ? { reply_markup: replyMarkup }
+          : {}),
       }),
       signal: AbortSignal.timeout(8000),
     });
@@ -108,4 +182,46 @@ export async function sendTelegram(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+export async function editTelegramMessage(
+  token: string,
+  chatId: string | number,
+  messageId: number,
+  text: string,
+  replyMarkup?: TelegramInlineKeyboardMarkup,
+): Promise<void> {
+  if (!token) return;
+  await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    }),
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => undefined);
+}
+
+export async function answerTelegramCallback(
+  token: string,
+  callbackQueryId: string,
+  text: string,
+  showAlert = false,
+): Promise<void> {
+  if (!token) return;
+  await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      callback_query_id: callbackQueryId,
+      text,
+      show_alert: showAlert,
+    }),
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => undefined);
 }

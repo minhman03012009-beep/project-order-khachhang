@@ -15,6 +15,24 @@ export const DELIVERY_QUICK_TAGS = [
   "Giao càng sớm càng tốt",
 ] as const;
 
+export const SPICY_OPTIONS = [
+  { level: 0, label: "Cấp 0", desc: "Không cay" },
+  { level: 0.5, label: "Cấp 0.5", desc: "Cay nhẹ" },
+  { level: 1, label: "Cấp 1", desc: "Cay dịu chuẩn" },
+  { level: 2, label: "Cấp 2", desc: "Cay vừa" },
+  { level: 3, label: "Cấp 3", desc: "Cay nồng" },
+  { level: 5, label: "Cấp 5", desc: "Cay bùng nổ" },
+  { level: 7, label: "Cấp 7", desc: "Cực hạn" },
+] as const;
+
+export const SCHEDULED_SLOTS = [
+  "Giao ngay (~20–30 phút)",
+  "11:30 - 11:45 (Trưa)",
+  "12:00 - 12:15 (Cao điểm)",
+  "17:30 - 17:45 (Chiều)",
+  "19:00 - 19:15 (Tối)",
+] as const;
+
 export const STATUS_LABEL: Record<string, string> = {
   PENDING: "Chờ xác nhận",
   COOKING: "Đang nấu",

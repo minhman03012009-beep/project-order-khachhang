@@ -24,6 +24,28 @@ create table if not exists public.store_settings (
   admin_pin            text    not null default '123456'
 );
 
+-- Commercial SaaS & Theme customization columns
+alter table public.store_settings add column if not exists theme_preset text not null default 'obsidian';
+alter table public.store_settings add column if not exists theme_mode text not null default 'dark';
+alter table public.store_settings add column if not exists theme_bg_color text not null default '#050505';
+alter table public.store_settings add column if not exists theme_accent_color text not null default '#ffffff';
+alter table public.store_settings add column if not exists allow_customer_theme_toggle boolean not null default true;
+alter table public.store_settings add column if not exists menu_title text not null default 'Thực đơn Mì Trộn';
+alter table public.store_settings add column if not exists item_unit_label text not null default 'hộp';
+alter table public.store_settings add column if not exists hotline text not null default '0327469961';
+alter table public.store_settings add column if not exists store_address text not null default '';
+alter table public.store_settings add column if not exists store_hours text not null default 'Mở cửa mỗi ngày';
+alter table public.store_settings add column if not exists enable_spicy_level boolean not null default false;
+alter table public.store_settings add column if not exists enable_cutlery_option boolean not null default true;
+alter table public.store_settings add column if not exists freeship_threshold integer not null default 0;
+alter table public.store_settings add column if not exists self_pickup_discount_pct integer not null default 0;
+alter table public.store_settings add column if not exists force_vietqr_high_risk boolean not null default false;
+alter table public.store_settings add column if not exists customer_cancel_enabled boolean not null default true;
+alter table public.store_settings add column if not exists vouchers jsonb not null default '[]'::jsonb;
+alter table public.store_settings add column if not exists bank_webhook_secret text not null default '';
+alter table public.store_settings add column if not exists telegram_webhook_secret text not null default '';
+alter table public.store_settings add column if not exists blacklisted_phones text[] not null default '{}';
+
 -- ---------------------------------------------------------------------
 -- 2. products
 -- ---------------------------------------------------------------------
@@ -36,6 +58,10 @@ create table if not exists public.products (
   is_available  boolean not null default true,
   sort_order    integer not null default 0
 );
+
+alter table public.products add column if not exists original_price integer;
+alter table public.products add column if not exists category text not null default 'Món chính';
+alter table public.products add column if not exists badge_text text not null default '';
 
 -- ---------------------------------------------------------------------
 -- 3. toppings
@@ -62,6 +88,9 @@ create table if not exists public.customers (
   updated_at    timestamptz not null default now()
 );
 
+alter table public.customers add column if not exists is_blacklisted boolean not null default false;
+alter table public.customers add column if not exists notes text not null default '';
+
 -- ---------------------------------------------------------------------
 -- 5. orders
 -- ---------------------------------------------------------------------
@@ -87,22 +116,26 @@ create table if not exists public.orders (
   created_at        timestamptz not null default now()
 );
 
+alter table public.orders add column if not exists payment_status text not null default 'UNPAID';
+alter table public.orders add column if not exists paid_amount integer not null default 0;
+alter table public.orders add column if not exists discount_amount integer not null default 0;
+alter table public.orders add column if not exists voucher_code text not null default '';
+alter table public.orders add column if not exists take_cutlery boolean not null default true;
+alter table public.orders add column if not exists scheduled_slot text not null default '';
+alter table public.orders add column if not exists is_self_pickup boolean not null default false;
+alter table public.orders add column if not exists risk_score integer not null default 0;
+alter table public.orders add column if not exists trust_label text not null default 'KHÁCH MỚI';
+alter table public.orders add column if not exists require_call_alert boolean not null default false;
+alter table public.orders add column if not exists tracking_token text not null default '';
+alter table public.orders add column if not exists expires_at timestamptz;
+alter table public.orders add column if not exists updated_by text not null default '';
+
 create index if not exists orders_created_at_idx on public.orders (created_at desc);
 create index if not exists orders_status_idx     on public.orders (status);
 create index if not exists orders_phone_idx      on public.orders (customer_phone);
 
 -- =====================================================================
 -- Row Level Security
--- ---------------------------------------------------------------------
--- All reads/writes go through Next.js API routes (server side). Secrets
--- (telegram token, admin PIN) are NEVER sent to browsers by the app.
---
--- RECOMMENDED: set SUPABASE_SERVICE_ROLE_KEY in your env (server only).
--- The service role bypasses RLS, so you can DELETE the "anon_*" policies
--- below for maximum security.
---
--- If you only provide NEXT_PUBLIC_SUPABASE_ANON_KEY, the permissive
--- "anon_*" policies below are required for the app to work.
 -- =====================================================================
 alter table public.store_settings enable row level security;
 alter table public.products       enable row level security;

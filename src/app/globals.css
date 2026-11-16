@@ -1,8 +1,30 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Design tokens — Minimalist dark (black / white) + glass
+   Design tokens — Dynamic White-Label Theme + Minimalist Glass
    ============================================================ */
+:root {
+  color-scheme: dark;
+  --app-bg: #050505;
+  --app-fg: #f5f5f5;
+  --app-muted: rgb(245 245 245 / 0.56);
+  --app-subtle: rgb(245 245 245 / 0.36);
+  --app-surface: rgb(255 255 255 / 0.05);
+  --app-surface-hover: rgb(255 255 255 / 0.09);
+  --app-surface-strong: rgb(11 11 12 / 0.9);
+  --app-border: rgb(255 255 255 / 0.1);
+  --app-border-strong: rgb(255 255 255 / 0.25);
+  --app-chip: rgb(255 255 255 / 0.06);
+  --app-accent: #ffffff;
+  --app-accent-fg: #050505;
+  --app-accent-rgb: 255 255 255;
+  --app-shadow: rgb(0 0 0 / 0.65);
+}
+
+[data-theme-mode="light"] {
+  color-scheme: light;
+}
+
 @theme inline {
   --font-sans: var(--font-be-vietnam), ui-sans-serif, system-ui, sans-serif;
 
@@ -11,9 +33,23 @@
   --color-ink-800: #141416;
   --color-ink-700: #1d1d20;
 
-  --color-ok: oklch(0.78 0.17 152);
-  --color-danger: oklch(0.68 0.2 25);
-  --color-warn: oklch(0.82 0.15 80);
+  /* Semantic theme tokens */
+  --color-app-bg: var(--app-bg);
+  --color-fg: var(--app-fg);
+  --color-muted: var(--app-muted);
+  --color-subtle: var(--app-subtle);
+  --color-surface: var(--app-surface);
+  --color-surface-hover: var(--app-surface-hover);
+  --color-surface-strong: var(--app-surface-strong);
+  --color-line: var(--app-border);
+  --color-line-strong: var(--app-border-strong);
+  --color-chip: var(--app-chip);
+  --color-accent: var(--app-accent);
+  --color-accent-fg: var(--app-accent-fg);
+
+  --color-ok: oklch(0.72 0.17 152);
+  --color-danger: oklch(0.64 0.21 25);
+  --color-warn: oklch(0.76 0.16 75);
 
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
 
@@ -75,28 +111,25 @@
 /* ============================================================
    Base
    ============================================================ */
-:root {
-  color-scheme: dark;
-}
-
 html {
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
 }
 
 body {
-  background-color: var(--color-ink-950);
-  color: #f5f5f5;
+  background-color: var(--app-bg);
+  color: var(--app-fg);
   font-family: var(--font-sans);
   background-image:
-    radial-gradient(60rem 40rem at 110% -10%, rgb(255 255 255 / 0.07), transparent 60%),
-    radial-gradient(50rem 30rem at -20% 10%, rgb(255 255 255 / 0.05), transparent 60%);
+    radial-gradient(60rem 40rem at 110% -10%, rgb(var(--app-accent-rgb) / 0.08), transparent 60%),
+    radial-gradient(50rem 30rem at -20% 10%, rgb(var(--app-accent-rgb) / 0.05), transparent 60%);
   background-attachment: fixed;
+  transition: background-color 280ms ease, color 220ms ease;
 }
 
 ::selection {
-  background: #fff;
-  color: #000;
+  background: var(--app-accent);
+  color: var(--app-accent-fg);
 }
 
 /* Hide number input spinners */
@@ -110,25 +143,38 @@ input[type="number"] {
 }
 
 /* ============================================================
-   Reusable component utilities (Tailwind v4 @utility so they
-   can be composed with @apply and combined with variants)
+   Reusable component utilities (Theme-aware)
    ============================================================ */
 @utility glass {
-  @apply border border-white/10 bg-white/5 backdrop-blur-md;
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  backdrop-filter: blur(12px);
 }
 @utility glass-strong {
-  @apply border border-white/10 bg-ink-900/85 backdrop-blur-xl;
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface-strong);
+  backdrop-filter: blur(24px);
 }
 @utility card {
   @apply glass rounded-3xl;
+  box-shadow: 0 12px 32px -18px var(--app-shadow);
 }
 @utility field {
-  @apply w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[15px] text-white
-    placeholder:text-white/35 outline-none transition
-    focus:border-white/40 focus:bg-white/[0.07] focus:ring-4 focus:ring-white/5;
+  @apply w-full rounded-2xl px-4 py-3 text-[15px] outline-none transition;
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  color: var(--app-fg);
+  &::placeholder {
+    color: var(--app-subtle);
+  }
+  &:focus {
+    border-color: var(--app-border-strong);
+    background-color: var(--app-surface-hover);
+  }
 }
 @utility label {
-  @apply mb-1.5 block text-xs font-medium tracking-wide text-white/55 uppercase;
+  @apply mb-1.5 block text-xs font-medium tracking-wide uppercase;
+  color: var(--app-muted);
 }
 @utility btn {
   @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold
@@ -136,10 +182,17 @@ input[type="number"] {
     select-none cursor-pointer;
 }
 @utility btn-primary {
-  @apply btn bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_-8px_rgb(255_255_255/0.35)];
+  @apply btn hover:opacity-90;
+  background-color: var(--app-accent);
+  color: var(--app-accent-fg);
+  box-shadow: 0 10px 28px -10px rgb(var(--app-accent-rgb) / 0.45);
 }
 @utility btn-ghost {
-  @apply btn glass text-white hover:bg-white/10;
+  @apply btn glass;
+  color: var(--app-fg);
+  &:hover {
+    background-color: var(--app-surface-hover);
+  }
 }
 @utility btn-danger {
   @apply btn border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20;
@@ -149,17 +202,27 @@ input[type="number"] {
     transition duration-200 active:scale-95 select-none cursor-pointer;
 }
 @utility pill-off {
-  @apply pill border-white/10 bg-white/[0.04] text-white/70 hover:border-white/25 hover:text-white;
+  @apply pill;
+  border-color: var(--app-border);
+  background-color: var(--app-surface);
+  color: var(--app-muted);
+  &:hover {
+    border-color: var(--app-border-strong);
+    color: var(--app-fg);
+  }
 }
 @utility pill-on {
-  @apply pill border-white bg-white text-black;
+  @apply pill;
+  border-color: var(--app-accent);
+  background-color: var(--app-accent);
+  color: var(--app-accent-fg);
 }
 @utility skeleton {
   background: linear-gradient(
     90deg,
-    rgb(255 255 255 / 0.04) 0%,
-    rgb(255 255 255 / 0.09) 50%,
-    rgb(255 255 255 / 0.04) 100%
+    rgb(var(--app-accent-rgb) / 0.04) 0%,
+    rgb(var(--app-accent-rgb) / 0.09) 50%,
+    rgb(var(--app-accent-rgb) / 0.04) 100%
   );
   background-size: 200% 100%;
   @apply animate-shimmer;

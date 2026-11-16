@@ -1,6 +1,6 @@
 import { after, type NextRequest } from "next/server";
 import { HttpError, placeOrder } from "@/lib/orders";
-import { buildOrderMessage, sendTelegram } from "@/lib/telegram";
+import { buildOrderInlineKeyboard, buildOrderMessage, sendTelegram } from "@/lib/telegram";
 import type { CreateOrderInput } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -16,10 +16,14 @@ export async function POST(req: NextRequest) {
 
     // Notify the owner after the response is sent → zero added latency for the customer.
     after(async () => {
+      const keyboard = settings.telegram_webhook_secret
+        ? buildOrderInlineKeyboard(order.id, order.status)
+        : undefined;
       const result = await sendTelegram(
         settings.telegram_bot_token,
         settings.telegram_chat_id,
         buildOrderMessage(order, customerOrderCount),
+        keyboard,
       );
       if (!result.ok && settings.telegram_bot_token) {
         console.error(`[telegram] ${order.order_code}: ${result.error}`);

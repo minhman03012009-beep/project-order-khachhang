@@ -27,9 +27,9 @@ export function VietQrCard({
   }
 
   return (
-    <div className="animate-rise overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
+    <div className="animate-rise overflow-hidden rounded-3xl border border-line bg-surface">
       <div className="grid gap-4 p-3 sm:grid-cols-[180px_1fr] sm:items-center">
-        <div className="relative mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-2xl bg-white p-2 sm:max-w-none">
+        <div className="relative mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-2xl border border-line bg-white p-2 sm:max-w-none">
           {url && (
             /* eslint-disable-next-line @next/next/no-img-element -- dynamic 3rd-party QR, no optimization wanted */
             <img
@@ -58,7 +58,7 @@ export function VietQrCard({
           target="_blank"
           rel="noreferrer"
           download
-          className="flex items-center justify-center gap-2 border-t border-white/10 py-2.5 text-xs font-medium text-white/60 transition hover:bg-white/5 hover:text-white"
+          className="flex items-center justify-center gap-2 border-t border-line py-2.5 text-xs font-medium text-muted transition hover:bg-chip hover:text-fg"
         >
           <Download className="size-3.5" /> Mở / lưu ảnh QR để quét bằng app ngân hàng
         </a>
@@ -83,8 +83,8 @@ function Row({
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="text-white/45">{label}</dt>
-      <dd className={cn("flex min-w-0 items-center gap-1.5 text-right", strong && "text-base font-bold")}>
+      <dt className="text-muted">{label}</dt>
+      <dd className={cn("flex min-w-0 items-center gap-1.5 text-right text-fg", strong && "text-base font-bold")}>
         <span className="truncate tabular-nums">{value}</span>
         {copy && (
           <button
@@ -96,7 +96,7 @@ function Row({
                 setTimeout(() => setCopied(false), 1200);
               });
             }}
-            className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-lg text-white/40 transition hover:bg-white/10 hover:text-white"
+            className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-lg text-subtle transition hover:bg-chip hover:text-fg"
           >
             {copied ? <Check className="size-3.5 text-ok" /> : <Copy className="size-3.5" />}
           </button>

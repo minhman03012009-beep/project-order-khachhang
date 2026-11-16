@@ -35,7 +35,6 @@ export function BottomSheet({
   const [closing, setClosing] = useState(false);
   const [prevOpen, setPrevOpen] = useState(open);
 
-  // Derive mount/unmount transitions during render (no effect → no extra paint).
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
@@ -69,7 +68,7 @@ export function BottomSheet({
     >
       <div
         className={cn(
-          "absolute inset-0 bg-black/70 backdrop-blur-sm",
+          "absolute inset-0 bg-black/65 backdrop-blur-sm",
           closing ? "animate-fade-out" : "animate-fade-in",
         )}
         onClick={onClose}
@@ -83,20 +82,20 @@ export function BottomSheet({
           }
         }}
         className={cn(
-          "glass-strong relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[2rem] shadow-2xl shadow-black md:rounded-[2rem]",
+          "glass-strong text-fg relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[2rem] shadow-2xl shadow-black/50 md:rounded-[2rem]",
           size === "lg" ? "md:max-w-2xl" : "md:max-w-lg",
           closing ? "animate-sheet-down md:animate-modal-out" : "animate-sheet-up md:animate-modal-in",
           className,
         )}
       >
         {/* drag handle (mobile affordance) */}
-        <div className="pointer-events-none absolute top-2 left-1/2 z-20 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/25 md:hidden" />
+        <div className="pointer-events-none absolute top-2 left-1/2 z-20 h-1.5 w-10 -translate-x-1/2 rounded-full bg-fg/25 md:hidden" />
 
         <button
           type="button"
           onClick={onClose}
           aria-label="Đóng"
-          className="absolute top-3 right-3 z-20 grid size-9 cursor-pointer place-items-center rounded-full border border-white/10 bg-black/50 text-white/80 backdrop-blur-md transition hover:bg-black/70 hover:text-white active:scale-90"
+          className="absolute top-3 right-3 z-20 grid size-9 cursor-pointer place-items-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md transition hover:bg-black/75 active:scale-90"
         >
           <X className="size-4.5" />
         </button>
@@ -114,7 +113,7 @@ export function BottomSheet({
         </div>
 
         {footer && (
-          <div className="border-t border-white/10 bg-ink-950/80 px-5 pt-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:px-6">
+          <div className="border-t border-line bg-surface-strong px-5 pt-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:px-6">
             {footer}
           </div>
         )}

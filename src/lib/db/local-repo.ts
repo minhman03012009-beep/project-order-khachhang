@@ -146,12 +146,13 @@ export class LocalRepository implements Repository {
   readonly kind = "local" as const;
 
   async getSettings() {
-    return clone((await load()).settings);
+    const loaded = await load();
+    return clone({ ...SEED_SETTINGS, ...loaded.settings });
   }
 
   updateSettings(patch: Partial<StoreSettings>) {
     return mutate((db) => {
-      db.settings = { ...db.settings, ...patch, id: db.settings.id };
+      db.settings = { ...SEED_SETTINGS, ...db.settings, ...patch, id: db.settings.id };
       return clone(db.settings);
     });
   }
@@ -194,6 +195,15 @@ export class LocalRepository implements Repository {
     });
   }
 
+  async listCustomers(limit = 200) {
+    const db = await load();
+    return clone(
+      Object.values(db.customers)
+        .sort((a, b) => (b.total_orders ?? 0) - (a.total_orders ?? 0))
+        .slice(0, limit),
+    );
+  }
+
   async getCustomer(phone: string) {
     const c = (await load()).customers[phone];
     return c ? clone(c) : null;
@@ -217,6 +227,14 @@ export class LocalRepository implements Repository {
 
   async getOrder(id: string) {
     const o = (await load()).orders.find((x) => x.id === id);
+    return o ? clone(o) : null;
+  }
+
+  async getOrderByCode(code: string) {
+    const normalized = code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    const o = (await load()).orders.find(
+      (x) => x.order_code.replace(/[^A-Za-z0-9]/g, "").toUpperCase() === normalized,
+    );
     return o ? clone(o) : null;
   }
 
@@ -258,12 +276,16 @@ export class LocalRepository implements Repository {
     });
   }
 
-  updateOrderStatus(id: string, status: OrderStatus) {
+  updateOrder(id: string, patch: Partial<Order>) {
     return mutate((db) => {
-      const o = db.orders.find((x) => x.id === id);
-      if (!o) return null;
-      o.status = status;
-      return clone(o);
+      const idx = db.orders.findIndex((x) => x.id === id);
+      if (idx < 0) return null;
+      db.orders[idx] = { ...db.orders[idx], ...patch, id: db.orders[idx].id };
+      return clone(db.orders[idx]);
     });
+  }
+
+  updateOrderStatus(id: string, status: OrderStatus) {
+    return this.updateOrder(id, { status });
   }
 }

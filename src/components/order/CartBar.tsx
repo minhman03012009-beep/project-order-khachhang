@@ -22,20 +22,20 @@ export function CartBar({
         id="cart-bar"
         type="button"
         onClick={onOpen}
-        className="glass-strong animate-rise pointer-events-auto mx-auto flex w-full max-w-xl cursor-pointer items-center gap-3 rounded-[1.6rem] p-2 pl-3 text-left shadow-[0_20px_60px_-15px_rgb(0_0_0/0.9)] transition hover:border-white/20 active:scale-[0.99]"
+        className="glass-strong animate-rise pointer-events-auto mx-auto flex w-full max-w-xl cursor-pointer items-center gap-3 rounded-[1.6rem] p-2 pl-3 text-left shadow-[0_20px_60px_-15px_rgb(0_0_0/0.45)] transition hover:border-line-strong active:scale-[0.99]"
       >
-        <span className="relative grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10">
+        <span className="relative grid size-11 shrink-0 place-items-center rounded-2xl bg-chip text-fg">
           <ShoppingBag className="size-5" />
           <span
             key={count}
-            className="animate-pop absolute -top-1 -right-1 grid min-w-5 place-items-center rounded-full bg-white px-1 text-[11px] leading-5 font-bold text-black"
+            className="animate-pop absolute -top-1 -right-1 grid min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] leading-5 font-bold text-accent-fg"
           >
             {count}
           </span>
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-xs text-white/55">Giỏ hàng ({count} món)</span>
-          <span key={total} className="animate-rise block text-[17px] font-bold tabular-nums">
+          <span className="block text-xs text-muted">Giỏ hàng ({count} món)</span>
+          <span key={total} className="animate-rise block text-[17px] font-bold text-fg tabular-nums">
             {formatVND(total)}
           </span>
         </span>

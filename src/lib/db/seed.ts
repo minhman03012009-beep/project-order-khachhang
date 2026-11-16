@@ -17,6 +17,47 @@ export const SEED_SETTINGS: StoreSettings = {
   telegram_bot_token: "",
   telegram_chat_id: "",
   admin_pin: "123456",
+
+  // Theme & White-label defaults (preserves exact current Obsidian Minimalist look)
+  theme_preset: "obsidian",
+  theme_mode: "dark",
+  theme_bg_color: "#050505",
+  theme_accent_color: "#ffffff",
+  allow_customer_theme_toggle: true,
+  menu_title: "Thực đơn Mì Trộn",
+  item_unit_label: "hộp",
+  hotline: "0327469961",
+  store_address: "",
+  store_hours: "Mở cửa mỗi ngày",
+
+  // Commerce & Personalization
+  enable_spicy_level: false,
+  enable_cutlery_option: true,
+  freeship_threshold: 0,
+  self_pickup_discount_pct: 0,
+  force_vietqr_high_risk: false,
+  customer_cancel_enabled: true,
+  vouchers: [
+    {
+      code: "INDOMIE10",
+      discount_amount: 10000,
+      min_order_amount: 80000,
+      is_active: true,
+      description: "Giảm 10.000đ cho đơn từ 80.000đ",
+    },
+    {
+      code: "KHACHQUEN",
+      discount_amount: 15000,
+      min_order_amount: 120000,
+      is_active: true,
+      description: "Giảm 15.000đ cho đơn từ 120.000đ",
+    },
+  ],
+
+  // Zero-Trust webhooks & blacklist
+  bank_webhook_secret: "",
+  telegram_webhook_secret: "",
+  blacklisted_phones: [],
 };
 
 export const SEED_PRODUCTS: Product[] = [
@@ -26,6 +67,9 @@ export const SEED_PRODUCTS: Product[] = [
     description:
       "Sợi mì dai óng sốt xì dầu ngọt Indonesia, hành phi giòn rụm, hành lá & trứng ốp la.",
     price: 25000,
+    original_price: null,
+    category: "Mì trộn",
+    badge_text: "",
     image_url: "/images/mi_truyen_thong.jpg",
     is_available: true,
     sort_order: 1,
@@ -36,6 +80,9 @@ export const SEED_PRODUCTS: Product[] = [
     description:
       "Full topping: trứng lòng đào, xúc xích nướng, chả cá Hàn Quốc, bò viên, mè rang.",
     price: 39000,
+    original_price: null,
+    category: "Mì trộn",
+    badge_text: "Bán chạy",
     image_url: "/images/mi_dac_biet.jpg",
     is_available: true,
     sort_order: 2,
@@ -46,6 +93,9 @@ export const SEED_PRODUCTS: Product[] = [
     description:
       "Sốt gochujang cay nồng, dầu ớt thơm, mè rang, ớt tươi và trứng ngâm tương.",
     price: 32000,
+    original_price: null,
+    category: "Mì trộn",
+    badge_text: "",
     image_url: "/images/mi_cay_han_quoc.jpg",
     is_available: true,
     sort_order: 3,
@@ -56,6 +106,9 @@ export const SEED_PRODUCTS: Product[] = [
     description:
       "Mozzarella nướng chảy kéo sợi phủ kín mì trộn, trứng ốp la viền giòn.",
     price: 35000,
+    original_price: null,
+    category: "Mì trộn",
+    badge_text: "",
     image_url: "/images/mi_pho_mai.jpg",
     is_available: true,
     sort_order: 4,

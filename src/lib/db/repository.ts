@@ -29,15 +29,18 @@ export interface Repository {
   upsertTopping(topping: Topping): Promise<Topping>;
   deleteTopping(id: string): Promise<void>;
 
+  listCustomers(limit?: number): Promise<Customer[]>;
   getCustomer(phone: string): Promise<Customer | null>;
   upsertCustomer(customer: Customer): Promise<Customer>;
 
   listOrders(limit?: number): Promise<Order[]>;
   getOrder(id: string): Promise<Order | null>;
+  getOrderByCode(code: string): Promise<Order | null>;
   /** Returns the next sequential code, e.g. "#IND-042". */
   nextOrderCode(): Promise<string>;
   isOrderCodeTaken(code: string): Promise<boolean>;
   createOrder(order: NewOrder): Promise<Order>;
+  updateOrder(id: string, patch: Partial<Order>): Promise<Order | null>;
   updateOrderStatus(id: string, status: OrderStatus): Promise<Order | null>;
 }
 

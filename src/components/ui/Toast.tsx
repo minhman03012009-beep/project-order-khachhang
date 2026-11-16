@@ -40,7 +40,7 @@ export function Toaster() {
         <div
           key={t.id}
           className={cn(
-            "glass-strong animate-rise flex max-w-sm items-center gap-2.5 rounded-2xl px-4 py-3 text-sm font-medium shadow-xl shadow-black/50",
+            "glass-strong text-fg animate-rise flex max-w-sm items-center gap-2.5 rounded-2xl px-4 py-3 text-sm font-medium shadow-xl shadow-black/25",
           )}
         >
           {t.tone === "ok" ? (

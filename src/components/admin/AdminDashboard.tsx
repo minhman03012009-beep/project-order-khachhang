@@ -10,18 +10,21 @@ import {
   LogOut,
   Settings,
   Soup,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { CustomersVouchersTab } from "@/components/admin/CustomersVouchersTab";
 import { MenuCrudTab } from "@/components/admin/MenuCrudTab";
 import { OrdersTab } from "@/components/admin/OrdersTab";
 import { SettingsTab } from "@/components/admin/SettingsTab";
 import { Toaster, toast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
+import { applyThemeToDocument } from "@/lib/theme";
 import type { StoreSettings } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type AdminTab = "orders" | "products" | "toppings" | "settings";
+type AdminTab = "orders" | "products" | "toppings" | "customers" | "settings";
 
 const TABS: {
   id: AdminTab;
@@ -29,10 +32,11 @@ const TABS: {
   shortLabel: string;
   icon: typeof ClipboardList;
 }[] = [
-  { id: "orders", label: "1. Đơn hàng & Trạng thái", shortLabel: "Đơn hàng", icon: ClipboardList },
-  { id: "products", label: "2. Món Chính", shortLabel: "Món chính", icon: Soup },
+  { id: "orders", label: "1. Đơn hàng", shortLabel: "Đơn", icon: ClipboardList },
+  { id: "products", label: "2. Món chính", shortLabel: "Món", icon: Soup },
   { id: "toppings", label: "3. Topping", shortLabel: "Topping", icon: EggFried },
-  { id: "settings", label: "4. Cấu hình & QR Bàn", shortLabel: "Cấu hình", icon: Settings },
+  { id: "customers", label: "4. Khách & Ưu đãi", shortLabel: "Ưu đãi", icon: Users },
+  { id: "settings", label: "5. Giao diện & Cài đặt", shortLabel: "Cài đặt", icon: Settings },
 ];
 
 export function AdminDashboard() {
@@ -43,6 +47,19 @@ export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<AdminTab>("orders");
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [storageKind, setStorageKind] = useState<"local" | "supabase">("local");
+
+  // Keep /admin always in crisp dark mode regardless of customer storefront theme
+  useEffect(() => {
+    applyThemeToDocument(
+      {
+        theme_mode: "dark",
+        theme_bg_color: "#050505",
+        theme_accent_color: "#ffffff",
+        allow_customer_theme_toggle: false,
+      },
+      "auto",
+    );
+  }, []);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -121,10 +138,10 @@ export function AdminDashboard() {
             <Lock className="size-6" />
           </div>
           <h1 className="mt-4 text-center text-xl font-bold tracking-tight">
-            Quản trị Tiệm Mì Indomie
+            Quản trị Cửa hàng
           </h1>
           <p className="mt-1 text-center text-xs text-white/55">
-            Nhập mã PIN chủ quán để quản lý đơn hàng, thực đơn &amp; cấu hình.
+            Nhập mã PIN chủ quán để quản lý đơn hàng, giao diện, thực đơn &amp; cấu hình.
           </p>
 
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
@@ -144,7 +161,6 @@ export function AdminDashboard() {
               />
             </div>
 
-            {/* Quick numeric keypad for mobile/tablet touch convenience */}
             <div className="grid grid-cols-3 gap-2">
               {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "⌫"].map((key) => (
                 <button
@@ -174,7 +190,7 @@ export function AdminDashboard() {
           </form>
 
           <p className="mt-4 text-center text-[11px] text-white/40">
-            Mã PIN mặc định trải nghiệm:{" "}
+            Mã PIN mặc định:{" "}
             <button
               type="button"
               onClick={() => setPin("123456")}
@@ -219,7 +235,7 @@ export function AdminDashboard() {
                 </span>
               </div>
               <p className="text-xs text-white/45">
-                 Quản lý đơn trực tiếp, món chính, topping, VietQR &amp; Telegram Bot
+                Quản lý đơn hàng, thực đơn, khách hàng, mã giảm giá &amp; tùy biến thương hiệu
               </p>
             </div>
           </div>
@@ -240,10 +256,10 @@ export function AdminDashboard() {
           </div>
         </div>
 
-        {/* 4-Tab Navigation Bar */}
+        {/* 5-Tab Navigation Bar */}
         <nav
           aria-label="Các mục quản trị"
-          className="no-scrollbar mt-3 grid grid-cols-4 gap-1.5 rounded-2xl border border-white/10 bg-white/[0.03] p-1"
+          className="no-scrollbar mt-3 grid grid-cols-5 gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1"
         >
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -255,7 +271,7 @@ export function AdminDashboard() {
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold transition",
+                  "flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-1.5 py-2.5 text-[11px] font-semibold transition sm:px-2 sm:text-xs",
                   active
                     ? "bg-white text-black shadow-md"
                     : "text-white/60 hover:bg-white/5 hover:text-white",
@@ -277,6 +293,9 @@ export function AdminDashboard() {
         )}
         {activeTab === "products" && <MenuCrudTab key="products" kind="products" />}
         {activeTab === "toppings" && <MenuCrudTab key="toppings" kind="toppings" />}
+        {activeTab === "customers" && (
+          <CustomersVouchersTab settings={settings} onSettingsChanged={setSettings} />
+        )}
         {activeTab === "settings" && (
           <SettingsTab settings={settings} onSettingsChanged={setSettings} />
         )}
@@ -284,4 +303,3 @@ export function AdminDashboard() {
     </div>
   );
 }
-
