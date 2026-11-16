@@ -32,19 +32,71 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
     count: 0,
     timer: null,
   });
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const keySeqRef = useRef<{ buf: string; ts: number }>({ buf: "", ts: 0 });
+
+  const openHiddenAdmin = useCallback(() => {
+    toast("🔓 Đang mở trang Quản trị…");
+    router.push("/admin");
+  }, [router]);
 
   const handleSecretAdminTap = () => {
     if (tapRef.current.timer) clearTimeout(tapRef.current.timer);
     tapRef.current.count += 1;
     if (tapRef.current.count >= 5) {
       tapRef.current.count = 0;
-      router.push("/admin");
+      openHiddenAdmin();
       return;
     }
     tapRef.current.timer = setTimeout(() => {
       tapRef.current.count = 0;
-    }, 1800);
+    }, 2500);
   };
+
+  const startLongPress = () => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = setTimeout(() => {
+      tapRef.current.count = 0;
+      openHiddenAdmin();
+    }, 1500);
+  };
+
+  const cancelLongPress = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  };
+
+  // Hidden desktop access: Alt + Shift + A, or typing "admin" outside inputs
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.altKey && e.shiftKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        openHiddenAdmin();
+        return;
+      }
+
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+        const now = Date.now();
+        const prev = now - keySeqRef.current.ts < 1500 ? keySeqRef.current.buf : "";
+        const next = (prev + e.key.toLowerCase()).slice(-5);
+        keySeqRef.current = { buf: next, ts: now };
+        if (next === "admin") {
+          keySeqRef.current.buf = "";
+          openHiddenAdmin();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      cancelLongPress();
+    };
+  }, [openHiddenAdmin]);
 
   const [menu, setMenu] = useState<MenuResponse | null>(initialMenu ?? null);
   const [loadingMenu, setLoadingMenu] = useState(!initialMenu);
@@ -395,12 +447,17 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
           tableNumber={mounted ? tableNumber : undefined}
         />
 
-        {/* Menu Header (Clean & Minimalist — 5 taps on title opens /admin) */}
+        {/* Menu Header (Clean & Minimalist — 5 taps or 1.5s hold opens /admin) */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between gap-3">
             <div
               onClick={handleSecretAdminTap}
-              className="flex cursor-default select-none items-center gap-2.5"
+              onPointerDown={startLongPress}
+              onPointerUp={cancelLongPress}
+              onPointerLeave={cancelLongPress}
+              onPointerCancel={cancelLongPress}
+              onContextMenu={(e) => e.preventDefault()}
+              className="flex cursor-default touch-manipulation select-none items-center gap-2.5"
             >
               <h1 className="text-lg font-bold tracking-tight text-fg">{menuTitle}</h1>
               {products.length > 0 && (
@@ -516,11 +573,16 @@ export function OrderApp({ initialMenu }: { initialMenu?: MenuResponse | null })
         )}
       </main>
 
-      {/* Minimalist Footer with Hotline Support (5 taps on store name also opens /admin) */}
+      {/* Minimalist Footer with Hotline Support (5 taps or 1.5s hold on store name opens /admin) */}
       <footer className="mt-12 border-t border-line pt-6 text-center">
         <p
           onClick={handleSecretAdminTap}
-          className="inline-block cursor-default select-none text-xs font-medium text-muted"
+          onPointerDown={startLongPress}
+          onPointerUp={cancelLongPress}
+          onPointerLeave={cancelLongPress}
+          onPointerCancel={cancelLongPress}
+          onContextMenu={(e) => e.preventDefault()}
+          className="inline-block cursor-default touch-manipulation select-none text-xs font-medium text-muted"
         >
           {storeName} • {storeHours}
           {settings?.store_address ? ` • ${settings.store_address}` : ""}
